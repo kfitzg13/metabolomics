@@ -1,2 +1,2 @@
 # Metabolomics
-Code for Fitzgerald et al. "Multi-omic Evaluation of Metabolic Alterations in Multiple Sclerosis Identifies Shifts in Aromatic Amino Acid Metabolism"
+Code for Fitzgerald et al. "Multi-omic Evaluation of Metabolic Alterations in Multiple Sclerosis Identifies Shifts in Aromatic Amino Acid Metabolism" Cell Reports Medicine (in press). 
