@@ -1,5 +1,6 @@
 library(WGCNA)
 library(gee)
+# set directory to location of github_metabolite_info and metab_data_template_final.csv files
 
 mets <- read.csv(file="github_metabolite_info.csv", header=T, sep=",")
 all_metab <- read.csv(file="metab_data_template_final.csv")
