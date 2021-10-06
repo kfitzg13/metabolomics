@@ -5,9 +5,8 @@ library(gee)
 mets <- read.csv(file="github_metabolite_info.csv", header=T, sep=",")
 all_metab <- read.csv(file="metab_data_template_final.csv")
 
-pheno3<- all_metab[, colnames(all_metab) %in% c("record_id", "status", "age", "gender", "race", "batch")]
-combat_edata3 <- all_metab[, !(colnames(all_metab) %in% c("record_id", "status", "age", "gender", "race", "batch"))]
-
+pheno3<- all_metab[, colnames(all_metab) %in% c("record_id", "status", "age", "gender", "race", "batch", "subtype", "dmt_clean", "edss")]
+combat_edata3 <- all_metab[, !(colnames(all_metab) %in% c("record_id", "status", "age", "gender", "race", "batch", "subtype", "dmt_clean", "edss"))]
 
 powers = c(c(1:10), seq(from = 12, to=20, by=2))
 sft = pickSoftThreshold(as.matrix(combat_edata3), powerVector = powers, verbose = 5)
@@ -101,3 +100,51 @@ individual_results <-individual_results[order(individual_results$pvalue),]
 individual_results_with_module <- merge(individual_results, module_results, by.x="metabolite",  by.y="kfcomp" )
 individual_results_with_module <- individual_results_with_module[order(individual_results_with_module$pvalue),]
 individual_results_with_module_significant <- individual_results_with_module[which(individual_results_with_module $fdrpv<(0.05)),]
+
+
+edss=pheno3$edss
+###############
+wgcna_results_edss <- NULL
+for ( i in 1:dim(MEso_results)[2]){
+  temp= MEso_results[,i]
+  td=data.frame(status, age, gender, temp, race, brid=brid, edss=edss, dmtclass=pheno3$dmtclass)
+  td=td[order(td$brid),]
+  m1=gee(temp~edss+age+gender+race, data=td, id=brid, corstr="exchangeable", na.action="na.omit", maxiter=1000)
+  beta<-coef(summary(m1))[2,1]
+  se<-coef(summary(m1))[2,4]
+  pval<-2*pnorm(abs(coef(summary(m1))[2,5]), lower.tail=FALSE)
+  mod<-c(beta, se, pval)
+  wgcna_results_edss <-rbind(wgcna_results_edss, mod)
+}
+
+wgcna_results_edss <-data.frame(wgcna_results_edss)
+colnames(wgcna_results_edss)<-c("beta", "se", "pvalue")
+wgcna_results_edss $module<- colnames(MEso_results)
+wgcna_results_edss $fdrpv<- p.adjust(wgcna_results_edss $pval)
+wgcna_results_edss[which(wgcna_results_edss $fdrpv<0.05),]
+wgcna_results_edss[which(wgcna_results_edss $pval<0.00313),]
+
+individual_results_edss <- NULL
+for ( i in 1:dim(combat_edata3)[2]){
+  temp= combat_edata3[,i]/sd(combat_edata3[,i])
+  td=data.frame(status, age, gender, temp, race, brid=brid, edss=edss, dmtclass=pheno3$dmtclass)
+  td=td[order(td$brid),]
+  m1=gee(temp~edss+age+gender+race, data=td, id=brid, corstr="exchangeable", na.action="na.omit", maxiter=1000)
+  beta<-coef(summary(m1))[2,1]
+  se<-coef(summary(m1))[2,4]
+  pval<-2*pnorm(abs(coef(summary(m1))[2,5]), lower.tail=FALSE)
+  mod<-c(beta, se, pval)
+  individual_results_edss <- rbind(individual_results_edss, mod)
+}
+individual_results_edss <- data.frame(individual_results_edss)
+colnames(individual_results_edss)<-c("beta", "se", "pvalue")
+individual_results_edss $metabolite=colnames(combat_edata3)
+individual_results_edss $fdrpv<- p.adjust(individual_results_edss $pval)
+individual_results_edss =merge(individual_results_edss, mets, by.y="kfcomp", by.x="metabolite")
+individual_results_edss <-individual_results_edss[order(individual_results_edss $pvalue),]
+individual_results_edss[which(individual_results_edss $pvalue<(0.001)),]
+individual_results_edss $lower <- individual_results_edss $beta-1.96* individual_results_edss $se
+individual_results_edss $upper <- individual_results_edss $beta+1.96* individual_results_edss $se
+
+individual_results_edss $ t3<- paste0(sprintf('%.2f', round(individual_results_edss $beta,2)), " (", sprintf('%.2f', round(individual_results_edss $lower,2)),", ",  sprintf('%.2f', round(individual_results_edss $upper,2)), ")")
+
