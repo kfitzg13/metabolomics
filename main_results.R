@@ -146,5 +146,60 @@ individual_results_edss[which(individual_results_edss $pvalue<(0.001)),]
 individual_results_edss $lower <- individual_results_edss $beta-1.96* individual_results_edss $se
 individual_results_edss $upper <- individual_results_edss $beta+1.96* individual_results_edss $se
 
-individual_results_edss $ t3<- paste0(sprintf('%.2f', round(individual_results_edss $beta,2)), " (", sprintf('%.2f', round(individual_results_edss $lower,2)),", ",  sprintf('%.2f', round(individual_results_edss $upper,2)), ")")
+individual_results_edss $ t3<- paste0(sprintf('%.2f', round(individual_results_edss $beta,2)), " (", 
+                                      sprintf('%.2f', round(individual_results_edss $lower,2)),", ",  
+                                      sprintf('%.2f', round(individual_results_edss $upper,2)), ")")
+
+library(ggrepel)
+  
+individual_results $Significant <- ifelse(individual_results $fdrpv < 0.05, "FDR < 0.05", "Not Sig")
+individual_results$logpv<-log10(individual_results$pvalue)
+ggplot(individual_results, aes(x = mean_diff, y =-logpv)) +
+    geom_point(aes(color = Significant), size=2) + xlim(c(-0.7, 0.4))+
+    scale_color_manual(values = c("red", "grey")) +
+    theme_bw(base_size = 12) + xlab("Mean difference: MS vs. HC")+ ylab("-log(p-value)") +theme(legend.position="none", axis.title.y=element_text(size=14, face="bold"), axis.title.x=element_text(size=14, face="bold"), panel.background = element_rect(fill = "white", colour = "black", size =1, linetype = "solid"), panel.grid.major = element_line(size = 0.2, 	linetype = 'solid', colour = "gray90"),panel.grid.minor = element_line(size = 0.1, linetype = 'solid',colour = "gray90"))+ geom_text_repel(
+      data = subset(individual_results, fdrpv < 0.05),
+      aes(label = BIOCHEMICAL_cr),
+      size=2.2,
+      box.padding = unit(0.3, "lines"),
+      point.padding = unit(0.2, "lines")
+    )
+
+
+disease_colors_ms=c("blue", "darkorange")
+combat_edata_resid <- matrix(NA, nrow=nrow(combat_edata3), ncol=ncol(combat_edata3))
+
+for ( i in 1:dim(combat_edata3)[2]){
+temp= combat_edata3[,i]/sd(combat_edata3[,i])
+td=data.frame(status=pheno3$status, age=pheno3$age, gender=pheno3$gender,  temp, race=pheno3$race)
+m2<- lm(temp~age+gender, data=td)
+combat_edata_resid [,i]<- resid(m2)
+}
+#mahalanobis
+library(vegan)
+D <- as.matrix(vegdist(combat_edata_resid, method="mahalanobis"))
+#mahalanobis
+ref_set<-which(pheno3$status=="HC")
+activity_index<- NULL
+for (i in 1:nrow(D)){
+	refset_no_i <- D[i, ref_set]
+	activity_index <- c(activity_index , median(refset_no_i))
+	}
+t.test(activity_index[which(pheno3$status=="HC")], activity_index[which(pheno3$status=="MS")] )	
+summary(glm(activity_index~pheno3$subtype, family="gaussian" ))
+
+m1=lm(activity_index~pheno3$subtype)
+m2=lm(activity_index~1)
+anova(m2, m1)
+metabolomics_diff <- data.frame(activity_index= activity_index, subtype=pheno3$subtype, status=pheno3$status)
+
+def_plot <- ggplot(data= metabolomics_diff, aes(x=activity_index, color=status, fill=status)) +
+    geom_density(alpha=0.85, size=0.6) +
+    geom_vline(xintercept=disease_activity_threshold, size=.8, linetype="dashed") +
+    scale_color_manual(values= disease_colors_ms, name="Diagnosis") +
+    scale_fill_manual(values= disease_colors_ms, name="Diagnosis") + 
+    xlab("Metabolic Dysfunction Score") + ylab("Density")+
+    annotate("rect", xmin= disease_activity_threshold , xmax=Inf, ymin=0, ymax=Inf, alpha=0.15)+theme(legend.position="bottom",legend.title=element_text(size=12, face="bold"), axis.title.y=element_text(size=13, face="bold"), axis.title.x=element_text(size=13, face="bold"), panel.background = element_rect(fill = "white", colour = "black", size =1, linetype = "solid"), panel.grid.major = element_line(size = 0.2, 	linetype = 'solid', colour = "gray90"),panel.grid.minor = element_line(size = 0.1, linetype = 'solid',colour = "gray90"))+xlim(18,30)
+
+plot(def_plot)
 
